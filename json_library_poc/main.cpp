@@ -1,151 +1,194 @@
-﻿#include <iostream>
+#include <iostream>
 #include <fstream>
 #include <string>
-#include <unordered_map>
-#include <stdexcept>
+#include <chrono>
+#include <format>
 #include <windows.h>
 
 #include "include/nlohmann/json.hpp"
 
 using json = nlohmann::json;
 
+const std::string DATA_FILE = "members.json";
+
 // ──────────────────────────────────────────────
-// 1. JSON → string 변환 예제
+// 파일 I/O
 // ──────────────────────────────────────────────
-void demo_to_string(const json& j)
+json load_members()
 {
-    std::cout << "=== [1] JSON → string ===\n";
+    std::ifstream ifs(DATA_FILE);
+    if (!ifs.is_open())
+        return { {"members", json::array()} };
 
-    // 전체 JSON을 보기 좋게 출력
-    std::string pretty = j.dump(4);
-    std::cout << "[pretty dump]\n" << pretty << "\n\n";
-
-    // 특정 필드를 string으로 꺼내기
-    std::string app_name  = j.at("application").get<std::string>();
-    std::string host      = j["server"]["host"].get<std::string>();
-    int         port      = j["server"]["port"].get<int>();
-    bool        debug     = j["debug"].get<bool>();
-    double      timeout   = j["server"]["timeout"].get<double>();
-
-    std::cout << "application : " << app_name  << "\n";
-    std::cout << "host        : " << host       << "\n";
-    std::cout << "port        : " << port       << "\n";
-    std::cout << "debug       : " << std::boolalpha << debug << "\n";
-    std::cout << "timeout     : " << timeout    << "\n\n";
-
-    // 배열을 문자열로 순회
-    std::cout << "[tags]\n";
-    for (const auto& tag : j["tags"])
-        std::cout << "  - " << tag.get<std::string>() << "\n";
-    std::cout << "\n";
-}
-
-// ──────────────────────────────────────────────
-// 2. JSON → unordered_map 변환 예제
-// ──────────────────────────────────────────────
-void demo_to_map(const json& j)
-{
-    std::cout << "=== [2] JSON → unordered_map ===\n";
-
-    // --- 2-a. 최상위 평탄화: string → string ---
-    // 값이 primitive인 필드만 골라서 map으로 만들기
-    std::unordered_map<std::string, std::string> flat_map;
-    for (const auto& [key, val] : j.items())
-    {
-        if (val.is_string())
-            flat_map[key] = val.get<std::string>();
-        else if (val.is_number_integer())
-            flat_map[key] = std::to_string(val.get<int>());
-        else if (val.is_boolean())
-            flat_map[key] = val.get<bool>() ? "true" : "false";
-        else
-            flat_map[key] = val.dump(); // object/array는 JSON 문자열로
-    }
-
-    std::cout << "[flat_map (top-level)]\n";
-    for (const auto& [k, v] : flat_map)
-        std::cout << "  " << k << " = " << v << "\n";
-    std::cout << "\n";
-
-    // --- 2-b. 서버 설정 → unordered_map<string, string> ---
-    std::unordered_map<std::string, std::string> server_map;
-    for (const auto& [k, v] : j["server"].items())
-        server_map[k] = v.dump();
-
-    std::cout << "[server map]\n";
-    for (const auto& [k, v] : server_map)
-        std::cout << "  " << k << " = " << v << "\n";
-    std::cout << "\n";
-
-    // --- 2-c. users 배열 → unordered_map<id, name> ---
-    std::unordered_map<int, std::string> user_map;
-    for (const auto& user : j["users"])
-        user_map[user["id"].get<int>()] = user["name"].get<std::string>();
-
-    std::cout << "[user_map (id → name)]\n";
-    for (const auto& [id, name] : user_map)
-        std::cout << "  " << id << " → " << name << "\n";
-    std::cout << "\n";
-}
-
-// ──────────────────────────────────────────────
-// 3. JSON 직접 빌드 & 직렬화 예제
-// ──────────────────────────────────────────────
-void demo_build_json()
-{
-    std::cout << "=== [3] JSON 직접 빌드 ===\n";
-
-    // 리터럴로 구성
-    json j = {
-        {"name",    "Charlie"},
-        {"age",     29},
-        {"active",  true},
-        {"scores",  {95, 82, 77}},
-        {"address", {
-            {"city",    "Seoul"},
-            {"zipcode", "04524"}
-        }}
-    };
-
-    std::cout << j.dump(2) << "\n\n";
-
-    // unordered_map에서 JSON으로 역변환
-    std::unordered_map<std::string, std::string> props = {
-        {"framework", "nlohmann/json"},
-        {"version",   "3.11.3"},
-        {"license",   "MIT"}
-    };
-    json from_map(props);
-    std::cout << "[map → JSON]\n" << from_map.dump(2) << "\n\n";
-}
-
-// ──────────────────────────────────────────────
-// 4. 안전한 접근 & null 처리 예제
-// ──────────────────────────────────────────────
-void demo_safe_access(const json& j)
-{
-    std::cout << "=== [4] 안전한 접근 & null 처리 ===\n";
-
-    // value() : 키 없으면 기본값 반환
-    std::string region = j.value("region", "unknown");
-    std::cout << "region (missing key) : " << region << "\n";
-
-    // null 체크
-    auto& nullable = j["metadata"]["nullable_field"];
-    std::cout << "nullable_field is null : " << std::boolalpha << nullable.is_null() << "\n";
-
-    // contains() : 키 존재 여부
-    std::cout << "has 'debug'   : " << j.contains("debug")   << "\n";
-    std::cout << "has 'missing' : " << j.contains("missing") << "\n";
-
-    // 예외 안전 get_to
+    json root;
     try {
-        std::string bad = j.at("server").at("nonexistent").get<std::string>();
+        ifs >> root;
     }
-    catch (const json::out_of_range& e) {
-        std::cout << "[expected exception] " << e.what() << "\n";
+    catch (const json::parse_error& e) {
+        std::cerr << "[Parse Error] " << e.what() << "\n";
+        return { {"members", json::array()} };
     }
-    std::cout << "\n";
+    return root;
+}
+
+void save_members(const json& root)
+{
+    std::ofstream ofs(DATA_FILE);
+    ofs << root.dump(4);
+}
+
+// ──────────────────────────────────────────────
+// 유틸
+// ──────────────────────────────────────────────
+std::string today_string()
+{
+    auto today = std::chrono::year_month_day{
+        std::chrono::floor<std::chrono::days>(std::chrono::system_clock::now())
+    };
+    return std::format("{:04}-{:02}-{:02}",
+        (int)today.year(), (unsigned)today.month(), (unsigned)today.day());
+}
+
+int next_id(const json& root)
+{
+    int max_id = 0;
+    for (const auto& m : root["members"])
+        max_id = std::max(max_id, m["id"].get<int>());
+    return max_id + 1;
+}
+
+void print_member(const json& m)
+{
+    std::cout << "  ID       : " << m["id"].get<int>() << "\n";
+    std::cout << "  이름     : " << m["name"].get<std::string>() << "\n";
+    std::cout << "  이메일   : " << m["email"].get<std::string>() << "\n";
+    std::cout << "  전화번호 : " << m["phone"].get<std::string>() << "\n";
+    std::cout << "  가입일   : " << m["created_at"].get<std::string>() << "\n";
+}
+
+// ──────────────────────────────────────────────
+// Create
+// ──────────────────────────────────────────────
+void create_member(json& root)
+{
+    std::cout << "\n=== 회원 추가 ===\n";
+
+    std::string name, email, phone;
+    std::cout << "이름     : "; std::getline(std::cin, name);
+    std::cout << "이메일   : "; std::getline(std::cin, email);
+    std::cout << "전화번호 : "; std::getline(std::cin, phone);
+
+    json member = {
+        {"id",         next_id(root)},
+        {"name",       name},
+        {"email",      email},
+        {"phone",      phone},
+        {"created_at", today_string()}
+    };
+
+    root["members"].push_back(member);
+    save_members(root);
+
+    std::cout << "[완료] 회원이 추가되었습니다. (ID: " << member["id"].get<int>() << ")\n";
+}
+
+// ──────────────────────────────────────────────
+// Read
+// ──────────────────────────────────────────────
+void read_all_members(const json& root)
+{
+    std::cout << "\n=== 회원 전체 조회 ===\n";
+
+    const auto& members = root["members"];
+    if (members.empty()) {
+        std::cout << "등록된 회원이 없습니다.\n";
+        return;
+    }
+
+    for (const auto& m : members) {
+        std::cout << "----------------------------------------\n";
+        print_member(m);
+    }
+    std::cout << "----------------------------------------\n";
+    std::cout << "총 " << members.size() << "명\n";
+}
+
+void read_member(const json& root)
+{
+    std::cout << "\n=== 회원 단건 조회 ===\n";
+    std::cout << "조회할 ID : ";
+    int id; std::cin >> id; std::cin.ignore();
+
+    for (const auto& m : root["members"]) {
+        if (m["id"].get<int>() == id) {
+            std::cout << "----------------------------------------\n";
+            print_member(m);
+            std::cout << "----------------------------------------\n";
+            return;
+        }
+    }
+    std::cout << "[오류] ID " << id << " 회원을 찾을 수 없습니다.\n";
+}
+
+// ──────────────────────────────────────────────
+// Update
+// ──────────────────────────────────────────────
+void update_member(json& root)
+{
+    std::cout << "\n=== 회원 수정 ===\n";
+    std::cout << "수정할 ID : ";
+    int id; std::cin >> id; std::cin.ignore();
+
+    for (auto& m : root["members"]) {
+        if (m["id"].get<int>() == id) {
+            std::cout << "[현재 정보]\n";
+            print_member(m);
+
+            std::string name, email, phone;
+            std::cout << "\n새 이름     (Enter=유지) : "; std::getline(std::cin, name);
+            std::cout << "새 이메일   (Enter=유지) : "; std::getline(std::cin, email);
+            std::cout << "새 전화번호 (Enter=유지) : "; std::getline(std::cin, phone);
+
+            if (!name.empty())  m["name"]  = name;
+            if (!email.empty()) m["email"] = email;
+            if (!phone.empty()) m["phone"] = phone;
+
+            save_members(root);
+            std::cout << "[완료] 회원 정보가 수정되었습니다.\n";
+            return;
+        }
+    }
+    std::cout << "[오류] ID " << id << " 회원을 찾을 수 없습니다.\n";
+}
+
+// ──────────────────────────────────────────────
+// Delete
+// ──────────────────────────────────────────────
+void delete_member(json& root)
+{
+    std::cout << "\n=== 회원 삭제 ===\n";
+    std::cout << "삭제할 ID : ";
+    int id; std::cin >> id; std::cin.ignore();
+
+    auto& members = root["members"];
+    for (auto it = members.begin(); it != members.end(); ++it) {
+        if ((*it)["id"].get<int>() == id) {
+            std::cout << "[삭제 대상]\n";
+            print_member(*it);
+            std::cout << "삭제하시겠습니까? (y/n) : ";
+            char confirm; std::cin >> confirm; std::cin.ignore();
+            if (confirm == 'y' || confirm == 'Y') {
+                members.erase(it);
+                save_members(root);
+                std::cout << "[완료] 회원이 삭제되었습니다.\n";
+            }
+            else {
+                std::cout << "[취소] 삭제가 취소되었습니다.\n";
+            }
+            return;
+        }
+    }
+    std::cout << "[오류] ID " << id << " 회원을 찾을 수 없습니다.\n";
 }
 
 // ──────────────────────────────────────────────
@@ -156,29 +199,40 @@ int main()
     SetConsoleOutputCP(CP_UTF8);
     SetConsoleCP(CP_UTF8);
 
-    // data.json 읽기 (실행파일 옆에 있어야 함)
-    std::ifstream ifs("data.json");
-    if (!ifs.is_open())
-    {
-        std::cerr << "[Error] data.json 파일을 열 수 없습니다.\n"
-                  << "실행 파일과 같은 디렉터리에 data.json이 있는지 확인하세요.\n";
-        return 1;
-    }
+    json root = load_members();
 
-    json root;
-    try {
-        ifs >> root; // 스트림에서 파싱
-    }
-    catch (const json::parse_error& e) {
-        std::cerr << "[Parse Error] " << e.what() << "\n";
-        return 1;
-    }
+    while (true) {
+        std::cout << "\n==============================\n";
+        std::cout << "      회원 관리 시스템\n";
+        std::cout << "==============================\n";
+        std::cout << "1. 전체 조회\n";
+        std::cout << "2. 단건 조회\n";
+        std::cout << "3. 회원 추가\n";
+        std::cout << "4. 회원 수정\n";
+        std::cout << "5. 회원 삭제\n";
+        std::cout << "0. 종료\n";
+        std::cout << "------------------------------\n";
+        std::cout << "선택 : ";
 
-    demo_to_string(root);
-    demo_to_map(root);
-    demo_build_json();
-    demo_safe_access(root);
+        int choice;
+        if (!(std::cin >> choice)) {
+            std::cin.clear();
+            std::cin.ignore(1000, '\n');
+            continue;
+        }
+        std::cin.ignore();
 
-    std::cout << "=== 완료 ===\n";
-    return 0;
+        switch (choice) {
+        case 1: read_all_members(root); break;
+        case 2: read_member(root);      break;
+        case 3: create_member(root);    break;
+        case 4: update_member(root);    break;
+        case 5: delete_member(root);    break;
+        case 0:
+            std::cout << "종료합니다.\n";
+            return 0;
+        default:
+            std::cout << "[오류] 올바른 메뉴를 선택하세요.\n";
+        }
+    }
 }

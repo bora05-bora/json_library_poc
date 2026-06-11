@@ -26,5 +26,6 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="data.json" />
+    <None Include="members.json" />
   </ItemGroup>
 </Project>

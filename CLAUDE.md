@@ -193,13 +193,30 @@ json root (메모리)
 | **Update** | id로 회원 검색 후 필드 수정, JSON 파일에 반영 |
 | **Delete** | id로 회원 검색 후 삭제, JSON 파일에 반영 |
 
-### 설계 방침
+### 설계 방침 (확정)
 
-- 데이터는 `members.json` 파일 하나로 관리 (런타임 읽기/쓰기)
-- CRUD 로직은 별도 헤더/소스로 분리 (`member.h`, `member_store.h/.cpp` 등)
-- `Member` 구조체와 nlohmann/json의 `to_json` / `from_json` 커스텀 직렬화 활용
-- id는 현재 최대값 + 1로 자동 채번
-- 파일 쓰기는 항상 `dump(4)` (들여쓰기 4칸) 로 저장
+- **파일 구조**: POC와 동일하게 `main.cpp` 단일 파일. 기능별 함수 분리
+- **데이터 파일**: `members.json` 하나로 관리 (런타임 읽기/쓰기)
+- **id 채번**: 현재 최대 id + 1로 자동 채번 (`next_id()` 함수)
+- **파일 저장**: `dump(4)` (들여쓰기 4칸) 고정
+- **한글 입출력**: `SetConsoleOutputCP(CP_UTF8)` + `/utf-8` 컴파일 옵션
+
+### 구현된 함수 목록
+
+```
+main.cpp
+├── load_members()        members.json 읽기, 없으면 빈 배열 반환
+├── save_members()        members.json 쓰기 (dump(4))
+├── today_string()        현재 날짜를 "YYYY-MM-DD" 문자열로 반환 (std::chrono)
+├── next_id()             members 배열 최대 id + 1 반환
+├── print_member()        회원 1명 정보 콘솔 출력
+├── create_member()       회원 추가 (C: 입력 → push_back → save)
+├── read_all_members()    전체 조회 (R: 배열 순회 출력)
+├── read_member()         단건 조회 (R: id로 선형 탐색)
+├── update_member()       회원 수정 (U: id 탐색 → 필드 교체 → save)
+├── delete_member()       회원 삭제 (D: id 탐색 → erase → save)
+└── main()                메뉴 루프 (while + switch)
+```
 
 ---
 
