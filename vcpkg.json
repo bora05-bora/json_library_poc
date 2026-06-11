@@ -1,0 +1,7 @@
+{
+  "name": "json-library-poc",
+  "version": "1.0.0",
+  "dependencies": [
+    "gtest"
+  ]
+}

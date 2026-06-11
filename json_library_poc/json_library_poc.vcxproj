@@ -159,9 +159,15 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\member_repository.cpp" />
+    <ClCompile Include="src\member_service.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\nlohmann\json.hpp" />
+    <ClInclude Include="src\member.h" />
+    <ClInclude Include="src\member_repository.h" />
+    <ClInclude Include="src\member_service.h" />
+    <ClInclude Include="src\member_view.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="data.json" />
