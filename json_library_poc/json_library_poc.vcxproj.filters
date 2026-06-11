@@ -45,5 +45,6 @@
   <ItemGroup>
     <None Include="data.json" />
     <None Include="members.json" />
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
