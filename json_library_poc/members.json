@@ -1,3 +1,11 @@
 {
-    "members": []
+    "members": [
+        {
+            "created_at": "2026-06-11",
+            "email": "amy@gmail.com",
+            "id": 2,
+            "name": "amy",
+            "phone": "010-000-0000"
+        }
+    ]
 }

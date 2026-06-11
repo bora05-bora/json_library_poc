@@ -3,6 +3,7 @@
 #include <string>
 #include <chrono>
 #include <format>
+#define NOMINMAX
 #include <windows.h>
 
 #include "include/nlohmann/json.hpp"
