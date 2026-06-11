@@ -3,5 +3,5 @@
     <Platform Name="x64" />
     <Platform Name="x86" />
   </Configurations>
-  <Project Path="json_library_poc/json_library_poc.vcxproj" />
+  <Project Path="json_library_poc/json_library_poc.vcxproj" Id="48ee8a63-12ad-4fd4-8c84-d0e716308db6" />
 </Solution>

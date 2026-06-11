@@ -1,8 +1,9 @@
-#include <iostream>
+﻿#include <iostream>
 #include <fstream>
 #include <string>
 #include <unordered_map>
 #include <stdexcept>
+#include <windows.h>
 
 #include "include/nlohmann/json.hpp"
 
@@ -152,6 +153,9 @@ void demo_safe_access(const json& j)
 // ──────────────────────────────────────────────
 int main()
 {
+    SetConsoleOutputCP(CP_UTF8);
+    SetConsoleCP(CP_UTF8);
+
     // data.json 읽기 (실행파일 옆에 있어야 함)
     std::ifstream ifs("data.json");
     if (!ifs.is_open())
